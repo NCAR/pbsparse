@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools >= 62.6"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pbshist"
+version = "0.1"
+authors = [
+  { name="Brian Vanderwende", email="vanderwb@ucar.edu" },
+]
+description = "A package for processing PBS Pro accounting records"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Distributed Computing",
+]
+
+# TODO: Update when supporting PEP 639 via newer setuptools
+#license = "MIT"
+#license-files = ["LICENSE"]
+license = { file = "LICENSE" }
+
+[project.urls]
+homepage = "https://github.com/NCAR/pbshist"
+issues = "https://github.com/NCAR/pbshist/issues"
