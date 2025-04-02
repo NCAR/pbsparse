@@ -46,7 +46,7 @@ class PbsRecord:
             pass
 
         try:
-            self.Resource_List["mem"] = float(self.Resource_List["mem"][:-2]) * mem_factor(self.Resource_List["mem"][-2:])
+            self.Resource_List["mem"] = float(self.Resource_List["mem"][:-2]) * _mem_factor(self.Resource_List["mem"][-2:])
         except KeyError:
             pass
         except (ValueError, TypeError) as e:
@@ -84,7 +84,7 @@ class PbsRecord:
             if hasattr(self, "resources_used"):
                 for mem_type in ("mem", "vmem"):
                     try:
-                        self.resources_used[mem_type] = float(self.resources_used[mem_type][:-2]) * mem_factor(self.resources_used[mem_type][-2:])
+                        self.resources_used[mem_type] = float(self.resources_used[mem_type][:-2]) * _mem_factor(self.resources_used[mem_type][-2:])
                     except KeyError:
                         pass
                     except ValueError:
@@ -107,7 +107,7 @@ class PbsRecord:
             elif hasattr(self, "resource_assigned"):
                 for mem_type in ("mem", "vmem"):
                     try:
-                        self.resource_assigned[mem_type] = float(self.resource_assigned[mem_type][:-2]) * mem_factor(self.resource_assigned[mem_type][-2:])
+                        self.resource_assigned[mem_type] = float(self.resource_assigned[mem_type][:-2]) * _mem_factor(self.resource_assigned[mem_type][-2:])
                     except KeyError:
                         pass
                     except ValueError:
@@ -129,7 +129,7 @@ class PbsRecord:
                 name, value = res_spec.split("=", 1)
 
                 if name == "mem":
-                    chunk[name] = float(value[:-2]) * mem_factor(value[-2:])
+                    chunk[name] = float(value[:-2]) * _mem_factor(value[-2:])
                 else:
                     try:
                         chunk[name] = int(value)
@@ -239,7 +239,7 @@ class ReverseOpen:
             if ord('\n') == chunk[byte_i]:
                 yield byte_i + 1
 
-def mem_factor(units):
+def _mem_factor(units):
     if units == "gb":
         return 1
     elif units == "tb":

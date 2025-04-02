@@ -1,9 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-src/pbshist/__init__.py
-src/pbshist/pbshist.py
-src/pbshist.egg-info/PKG-INFO
-src/pbshist.egg-info/SOURCES.txt
-src/pbshist.egg-info/dependency_links.txt
-src/pbshist.egg-info/top_level.txt

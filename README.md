@@ -17,8 +17,34 @@ each accounting record is handled for you.
 
 ## Installation
 
-TBD
+Simply install from PyPI using pip:
+
+```shell
+$ python3 -m pip install pbshist
+```
 
 ## Usage
 
-TBD
+The main interface to load records is the `get_pbs_records` function. For
+example, if you wanted to get all jobs by their start record, you could use the
+following:
+
+```python
+from pbshist import get_pbs_records
+
+job_starts = get_pbs_records("/pbs/accounting/20250301", type_filter = "S")
+```
+
+This function allows for extensive filtering options.
+
+You can also use the `PbsRecord` class directly:
+
+```python
+from pbshist import PbsRecord
+
+with open("/pbs/accounting/20250301", "r") as pbs_file:
+    for line in pbs_file:
+        # Read data into object and process metadata
+        record = PbsRecord(record, True)
+        print(record)
+```
