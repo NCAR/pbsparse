@@ -3,7 +3,7 @@ requires = ["setuptools >= 62.6"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pbshist"
+name = "pbsparse"
 version = "0.2"
 authors = [
   { name="Brian Vanderwende", email="vanderwb@ucar.edu" },
@@ -24,5 +24,5 @@ classifiers = [
 license = { file = "LICENSE" }
 
 [project.urls]
-homepage = "https://github.com/NCAR/pbshist"
-issues = "https://github.com/NCAR/pbshist/issues"
+homepage = "https://github.com/NCAR/pbsparse"
+issues = "https://github.com/NCAR/pbsparse/issues"

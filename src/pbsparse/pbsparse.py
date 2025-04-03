@@ -252,10 +252,13 @@ def _mem_factor(units):
 def get_pbs_records(data_file, process = False, type_filter = None,
                     id_filter = None, host_filter = None, data_filters = None,
                     reverse = False, time_divisor = 1.0):
-    if reverse:
-        cm = ReverseOpen(data_file)
-    else:
-        cm = open(data_file, "r")
+    try:
+        if reverse:
+            cm = ReverseOpen(data_file)
+        else:
+            cm = open(data_file, "r")
+    except FileNotFoundError:
+        print("Warning: missing records in time period ({})".format(data_file), file = sys.stderr)
 
     with cm as records:
         for record in records:
