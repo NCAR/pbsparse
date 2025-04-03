@@ -8,4 +8,4 @@ upload:
 	python3 -m twine upload dist/*
 
 clean:
-	rm -rf dist build
+	rm -rf dist build src/*.egg-info
