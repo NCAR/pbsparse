@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pbsparse"
-version = "0.2.1"
+version = "0.2.2"
 authors = [
   { name="Brian Vanderwende", email="vanderwb@ucar.edu" },
 ]
