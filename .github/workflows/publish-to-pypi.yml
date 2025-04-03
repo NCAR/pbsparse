@@ -1,5 +1,8 @@
-name: 📦🐍📝 Publish package to PyPI and TestPyPI
-on: push
+name: Publish package to PyPI # and TestPyPI
+on:
+  push:
+    branches:
+    - main
 
 jobs:
   build:
@@ -96,6 +99,8 @@ jobs:
 
   publish-to-testpypi:
     name: 🐍 Publish package to TestPyPI
+    # Disable this for now
+    if: false
     needs:
     - build
     runs-on: ubuntu-latest
