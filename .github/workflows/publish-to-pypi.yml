@@ -1,7 +1,5 @@
-name: Publish package to PyPI # and TestPyPI
-on:
-  release:
-    types: [created]
+name: Publish package to PyPI
+on: push
 
 jobs:
   build:
@@ -32,6 +30,8 @@ jobs:
 
   publish-to-pypi:
     name: 🐍 Publish package to PyPI
+    # Trigger this and signing step only when a tag is pushed
+    if: startsWith(github.ref, 'refs/tags/')
     needs:
     - build
     runs-on: ubuntu-latest
@@ -96,7 +96,7 @@ jobs:
 
   publish-to-testpypi:
     name: 🐍 Publish package to TestPyPI
-    # Disable this for now
+    # Use this for testing when needed
     if: false
     needs:
     - build
