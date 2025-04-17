@@ -9,3 +9,4 @@ upload:
 
 clean:
 	rm -rf dist build src/*.egg-info
+	find . -name "__pycache__" -exec rm -r {} \;

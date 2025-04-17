@@ -14,109 +14,123 @@ class PbsRecord:
         self.short_id = self.id.split(".")[0]
         self._divisor = time_divisor
 
-        for name, value in (item.split("=", 1) for item in record_meta.split()):
-            if "-" in name:
-                name = name.replace("-", "_")
+        if "=" in record_meta:
+            self._processable = True
 
-            if "." in name:
-                category, name = name.split(".")
+            for name, value in (item.split("=", 1) for item in record_meta.split()):
+                if "-" in name:
+                    name = name.replace("-", "_")
 
-                try:
-                    getattr(self, category)[name] = value
-                except AttributeError:
-                    setattr(self, category, { name : value })
-            else:
-                setattr(self, name, value)
+                if "." in name:
+                    category, name = name.split(".")
 
-        if process:
-            self.process_record()
+                    try:
+                        getattr(self, category)[name] = value
+                    except AttributeError:
+                        setattr(self, category, { name : value })
+                else:
+                    setattr(self, name, value)
+
+            if process:
+                self.process_record()
+        else:
+            self._processable = False
+            self.comment = record_meta
 
     def __str__(self):
         return f"{self.type} record at {self.time} for job {self.id}"
 
     def process_record(self):
-        try:
-            self.account = self.account.replace('"', "")
-        except AttributeError:
-            pass
-
-        try:
-            self.run_count = int(self.run_count)
-        except (AttributeError, ValueError) as e:
-            pass
-
-        try:
-            self.Resource_List["mem"] = float(self.Resource_List["mem"][:-2]) * _mem_factor(self.Resource_List["mem"][-2:])
-        except KeyError:
-            pass
-        except (ValueError, TypeError) as e:
-            self.Resource_List["mem"] = 0
-
-        try:
-            self.Resource_List["walltime"] = sum(int(x) * 60 ** (2 - i) for i, x in enumerate(self.Resource_List["walltime"].split(':'))) / self._divisor
-        except (KeyError, ValueError) as e:
-            pass
-
-        try:
-            self.eligible_time = sum(int(x) * 60 ** (2 - i) for i, x in enumerate(self.eligible_time.split(':'))) / self._divisor
-        except (AttributeError, ValueError) as e:
-            pass
-
-        try:
-            self.waittime = (int(self.start) - int(self.etime)) / self._divisor
-        except AttributeError:
-            pass
-
-        for time_var in ("ctime", "etime", "start", "end"):
+        if self._processable:
             try:
-                raw_value = getattr(self, time_var)
-                setattr(self, time_var, datetime.datetime.fromtimestamp(float(raw_value)))
+                self.request_user, self.request_server = self.requestor.split("@")
+            except AttributeError:
+                pass
+
+            try:
+                self.account = self.account.replace('"', "")
+            except AttributeError:
+                pass
+
+            for int_var in ("run_count", "count", "Priority"):
+                try:
+                    setattr(self, int_var, int(getattr(self, int_var)))
+                except (AttributeError, ValueError) as e:
+                    pass
+
+            try:
+                self.eligible_time = sum(int(x) * 60 ** (2 - i) for i, x in enumerate(self.eligible_time.split(':'))) / self._divisor
             except (AttributeError, ValueError) as e:
                 pass
 
-        for list_var in ("ncpus", "ngpus", "nodect"):
             try:
-                self.Resource_List[list_var] = int(self.Resource_List[list_var])
-            except (KeyError, ValueError) as e:
+                self.waittime = (int(self.start) - int(self.etime)) / self._divisor
+            except AttributeError:
                 pass
 
-        if "[]" not in self.id:
-            if hasattr(self, "resources_used"):
-                for mem_type in ("mem", "vmem"):
-                    try:
-                        self.resources_used[mem_type] = float(self.resources_used[mem_type][:-2]) * _mem_factor(self.resources_used[mem_type][-2:])
-                    except KeyError:
-                        pass
-                    except ValueError:
-                        self.resources_used[mem_type] = 0
+            for time_var in ("ctime", "qtime", "etime", "start", "end"):
+                try:
+                    raw_value = getattr(self, time_var)
+                    setattr(self, time_var, datetime.datetime.fromtimestamp(float(raw_value)))
+                except (AttributeError, ValueError) as e:
+                    pass
 
-                for time_var in ("walltime", "cput"):
+            if hasattr(self, "Resource_List"):
+                try:
+                    self.Resource_List["mem"] = float(self.Resource_List["mem"][:-2]) * _mem_factor(self.Resource_List["mem"][-2:])
+                except KeyError:
+                    pass
+                except (ValueError, TypeError) as e:
+                    self.Resource_List["mem"] = 0
+
+                try:
+                    self.Resource_List["walltime"] = sum(int(x) * 60 ** (2 - i) for i, x in enumerate(self.Resource_List["walltime"].split(':'))) / self._divisor
+                except (KeyError, ValueError) as e:
+                    pass
+
+                for list_var in ("ncpus", "ngpus", "nodect"):
                     try:
-                        self.resources_used[time_var] = sum(int(x) * 60 ** (2 - i) for i, x in enumerate(self.resources_used[time_var].split(':'))) / self._divisor
+                        self.Resource_List[list_var] = int(self.Resource_List[list_var])
                     except (KeyError, ValueError) as e:
                         pass
 
-                for list_var in ("ncpus", "cpupercent"):
-                    try:
-                        self.resources_used[list_var] = int(self.resources_used[list_var])
+            if "[]" not in self.id:
+                if hasattr(self, "resources_used"):
+                    for mem_type in ("mem", "vmem"):
+                        try:
+                            self.resources_used[mem_type] = float(self.resources_used[mem_type][:-2]) * _mem_factor(self.resources_used[mem_type][-2:])
+                        except KeyError:
+                            pass
+                        except ValueError:
+                            self.resources_used[mem_type] = 0
 
-                        if list_var == "cpupercent":
-                            self.resources_used["avgcpu"] = float(self.resources_used["cpupercent"]) / self.Resource_List["ncpus"]
-                    except (KeyError, ValueError, ZeroDivisionError) as e:
-                        pass
-            elif hasattr(self, "resource_assigned"):
-                for mem_type in ("mem", "vmem"):
-                    try:
-                        self.resource_assigned[mem_type] = float(self.resource_assigned[mem_type][:-2]) * _mem_factor(self.resource_assigned[mem_type][-2:])
-                    except KeyError:
-                        pass
-                    except ValueError:
-                        self.resources_used[mem_type] = 0
+                    for time_var in ("walltime", "cput"):
+                        try:
+                            self.resources_used[time_var] = sum(int(x) * 60 ** (2 - i) for i, x in enumerate(self.resources_used[time_var].split(':'))) / self._divisor
+                        except (KeyError, ValueError) as e:
+                            pass
 
-                try:
-                    self.resource_assigned["ncpus"] = int(self.resource_assigned["ncpus"])
-                except (KeyError, ValueError) as e:
-                    pass
+                    for list_var in ("ncpus", "cpupercent"):
+                        try:
+                            self.resources_used[list_var] = int(self.resources_used[list_var])
+
+                            if list_var == "cpupercent":
+                                self.resources_used["avgcpu"] = float(self.resources_used["cpupercent"]) / self.Resource_List["ncpus"]
+                        except (KeyError, ValueError, ZeroDivisionError) as e:
+                            pass
+                elif hasattr(self, "resource_assigned"):
+                    for mem_type in ("mem", "vmem"):
+                        try:
+                            self.resource_assigned[mem_type] = float(self.resource_assigned[mem_type][:-2]) * _mem_factor(self.resource_assigned[mem_type][-2:])
+                        except KeyError:
+                            pass
+                        except ValueError:
+                            self.resources_used[mem_type] = 0
+
+                    try:
+                        self.resource_assigned["ncpus"] = int(self.resource_assigned["ncpus"])
+                    except (KeyError, ValueError) as e:
+                        pass
 
     def get_chunks(self):
         chunks = []
@@ -162,14 +176,14 @@ class ReverseOpen:
     def __enter__(self):
         self.open()
         return self
-  
+
     def __exit__(self, *args, **kwargs):
         self.close()
-  
+
     def open(self):
         if self._file is None:
             self._file = open(self.file_path, 'rb')
-            
+
             try:
                 self._file_size = self._file.seek(0, os.SEEK_END)
             except:
@@ -191,10 +205,10 @@ class ReverseOpen:
         # reverse iterate lines, except for last line if empty
         iter_lines = self._lines()
         last_line = next(iter_lines)
-        
+
         if last_line:
             yield last_line
-        
+
         yield from iter_lines
 
     def _lines(self):
@@ -207,12 +221,12 @@ class ReverseOpen:
 
         for chunk in self.chunks():
             right_chunk_i = len(chunk)
-          
+
             for left_chunk_i in self.line_starts(chunk):
                 yield b''.join(iter_cur_bytes())
                 del line[:]
                 right_chunk_i = left_chunk_i
-          
+
             if right_chunk_i:
                 line.append(chunk[:right_chunk_i])
 
