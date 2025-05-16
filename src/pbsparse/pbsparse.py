@@ -1,3 +1,5 @@
+"""pbsparse module for reading in PBS Pro job records from accounting logs"""
+
 import datetime, re, sys, os, io
 
 from typing import Optional, BinaryIO
@@ -5,6 +7,24 @@ from typing import Optional, BinaryIO
 NODE_REGEX = re.compile('\(([^:]*)')
 
 class PbsRecord:
+    """Class that contains record data and metadata processing routines
+
+    Args:
+        record_data (str): A single record/line from an accounting log
+        process (bool, optional): Decide whether to process log upon initialization. Default is false.
+        time_divisor (float, optional): Time unit conversion. Default is 1.0 for seconds.
+
+    Attributes:
+        time (datetime): When the record was created by PBS
+        type (str): The type of PBS accounting record (see man qstat)
+        id (str): The full job ID for the accounting record
+        short_id (str): The job ID with the PBS server removed
+
+    Note:
+        Record metadata are also stored as attributes, with key=value becoming self.key = value,
+        except in the case of resources, which become self.resource_*[key] = value.
+    """
+
     def __init__(self, record_data, process = False, time_divisor = 1.0):
         time_stamp, record_type, job_id, record_meta = record_data.split(";")
 
@@ -41,6 +61,8 @@ class PbsRecord:
         return f"{self.type} record at {self.time} for job {self.id}"
 
     def process_record(self):
+        """Perform data manipulations (e.g., type conversions) on record metadata"""
+
         if self._processable:
             try:
                 self.request_user, self.request_server = self.requestor.split("@")
@@ -133,6 +155,11 @@ class PbsRecord:
                         pass
 
     def get_chunks(self):
+        """Split out chunk resources to retrieve relevant metadata for processing
+
+        Returns:
+            chunks (list): A list of dictionaries containing split out metadata for each resource chunk
+        """
         chunks = []
 
         for chunk_spec in self.Resource_List["select"].split("+"):
@@ -155,6 +182,11 @@ class PbsRecord:
         return chunks
 
     def get_nodes(self):
+        """Extract execution nodes from Altair node printing format
+
+        Returns:
+            list: All nodes found from class metadata
+        """
         try:
             return NODE_REGEX.findall(self.exec_vnode)
         except AttributeError:
@@ -263,9 +295,9 @@ def _mem_factor(units):
     elif units == "kb":
         return (1.0 / 1048576)
 
-def get_pbs_records(data_file, process = False, type_filter = None,
-                    id_filter = None, host_filter = None, data_filters = None,
-                    reverse = False, time_divisor = 1.0):
+def get_pbs_records(data_file, CustomRecord = None, process = False,
+                    type_filter = None, id_filter = None, host_filter = None,
+                    data_filters = None, reverse = False, time_divisor = 1.0):
     try:
         if reverse:
             cm = ReverseOpen(data_file)
@@ -274,11 +306,16 @@ def get_pbs_records(data_file, process = False, type_filter = None,
     except FileNotFoundError:
         print("Warning: missing records in time period ({})".format(data_file), file = sys.stderr)
 
+    if CustomRecord:
+        Record = CustomRecord
+    else:
+        Record = PbsRecord
+
     with cm as records:
         for record in records:
             if not type_filter or record[20] in type_filter:
                 match = True
-                event = PbsRecord(record, process, time_divisor = time_divisor)
+                event = Record(record, process, time_divisor = time_divisor)
 
                 if not id_filter or any(event.short_id.startswith(job) for job in id_filter):
                     if host_filter:
