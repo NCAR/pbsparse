@@ -297,7 +297,8 @@ def _mem_factor(units):
 
 def get_pbs_records(data_file, CustomRecord = None, process = False,
                     type_filter = None, id_filter = None, host_filter = None,
-                    data_filters = None, reverse = False, time_divisor = 1.0):
+                    data_filters = None, time_filter = None, reverse = False,
+                    time_divisor = 1.0):
     try:
         if reverse:
             cm = ReverseOpen(data_file)
@@ -324,16 +325,24 @@ def get_pbs_records(data_file, CustomRecord = None, process = False,
                         if not all(mom in job_nodes for mom in host_filter):
                             continue
 
-                    for negation, operation, field, expected in data_filters:
-                        if "[" in field:
-                            field_dict, field_key = field.split("[")
-                            value = getattr(event, field_dict)[field_key[:-1]]
-                        else:
-                            value = getattr(event, field)
+                    if time_filter:
+                        try:
+                            if not time_filter[0] <= event.time <= time_filter[1]:
+                                continue
+                        except KeyError:
+                            exit("Error: job time filter must be a list of two datetimes")
 
-                        if operation(value, type(value)(expected)) ^ (not negation):
-                            match = False
-                            break
+                    if data_filters:
+                        for negation, operation, field, expected in data_filters:
+                            if "[" in field:
+                                field_dict, field_key = field.split("[")
+                                value = getattr(event, field_dict)[field_key[:-1]]
+                            else:
+                                value = getattr(event, field)
+
+                            if operation(value, type(value)(expected)) ^ (not negation):
+                                match = False
+                                break
 
                     if match:
                         yield event
