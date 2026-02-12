@@ -28,6 +28,7 @@ class PbsRecord:
     def __init__(self, record_data, process = False, time_divisor = 1.0):
         time_stamp, record_type, job_id, record_meta = record_data.split(";")
 
+        self._raw_record = record_data
         self.time = datetime.datetime.strptime(time_stamp, "%m/%d/%Y %H:%M:%S")
         self.type = record_type
         self.id = job_id
