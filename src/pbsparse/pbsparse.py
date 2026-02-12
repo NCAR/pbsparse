@@ -4,7 +4,7 @@ import datetime, re, sys, os, io
 
 from typing import Optional, BinaryIO
 
-NODE_REGEX = re.compile('\(([^:]*)')
+NODE_REGEX = re.compile(r'\(([^:]*)')
 
 class PbsRecord:
     """Class that contains record data and metadata processing routines
@@ -33,6 +33,7 @@ class PbsRecord:
         self.id = job_id
         self.short_id = self.id.split(".")[0]
         self._divisor = time_divisor
+        self._estimates = False
 
         if "=" in record_meta:
             self._processable = True
@@ -60,6 +61,44 @@ class PbsRecord:
     def __str__(self):
         return f"{self.type} record at {self.time} for job {self.id}"
 
+    def _process_time(self, time_vars):
+        for time_var in time_vars:
+            try:
+                raw_value = getattr(self, time_var)
+
+                if raw_value != "0":
+                    setattr(self, time_var, datetime.datetime.fromtimestamp(int(raw_value)))
+                else:
+                    setattr(self, time_var, "")
+            except (AttributeError, ValueError) as e:
+                pass
+
+    def _process_time_with_resources(self):
+        try:
+            if self.start == "0" or self.end == "0":
+                if self.start == "0" and self.end == "0":
+                    self.start = ""
+                    self.end = ""
+                elif self.start == "0":
+                    self.end = int(self.end)
+                    self.start = datetime.datetime.fromtimestamp(self.end - (self.resources_used["walltime"] * self._divisor))
+                    self.end = datetime.datetime.fromtimestamp(self.end)
+                    self._estimates = True
+                else:
+                    self.start = int(self.start)
+                    self.end = datetime.datetime.fromtimestamp(self.start + (self.resources_used["walltime"] * self._divisor))
+                    self.start = datetime.datetime.fromtimestamp(self.start)
+                    self._estimates = True
+            else:
+                self.start = datetime.datetime.fromtimestamp(int(self.start))
+                self.end = datetime.datetime.fromtimestamp(int(self.end))
+        except (AttributeError, ValueError, KeyError) as e:
+            for time_var in ("start", "end"):
+                if isinstance(getattr(self, time_var), str):
+                    setattr(self, time_var, "")
+
+            pass
+
     def process_record(self):
         """Perform data manipulations (e.g., type conversions) on record metadata"""
 
@@ -85,17 +124,7 @@ class PbsRecord:
             except (AttributeError, ValueError) as e:
                 pass
 
-            try:
-                self.waittime = (int(self.start) - int(self.etime)) / self._divisor
-            except AttributeError:
-                pass
-
-            for time_var in ("ctime", "qtime", "etime", "start", "end"):
-                try:
-                    raw_value = getattr(self, time_var)
-                    setattr(self, time_var, datetime.datetime.fromtimestamp(float(raw_value)))
-                except (AttributeError, ValueError) as e:
-                    pass
+            self._process_time(("ctime", "qtime", "etime"))
 
             if hasattr(self, "Resource_List"):
                 try:
@@ -140,6 +169,8 @@ class PbsRecord:
                                 self.resources_used["avgcpu"] = float(self.resources_used["cpupercent"]) / self.Resource_List["ncpus"]
                         except (KeyError, ValueError, ZeroDivisionError) as e:
                             pass
+
+                    self._process_time_with_resources()
                 elif hasattr(self, "resource_assigned"):
                     for mem_type in ("mem", "vmem"):
                         try:
@@ -153,6 +184,15 @@ class PbsRecord:
                         self.resource_assigned["ncpus"] = int(self.resource_assigned["ncpus"])
                     except (KeyError, ValueError) as e:
                         pass
+
+                    self._process_time(("start", "end"))
+            else:
+                self._process_time(("start", "end"))
+
+            try:
+                self.waittime = (self.start - self.etime).total_seconds() / self._divisor
+            except (AttributeError, TypeError) as e:
+                pass
 
     def get_chunks(self):
         """Split out chunk resources to retrieve relevant metadata for processing

@@ -1,8 +1,13 @@
 import pytest
 from pbsparse import pbsparse
 
+e_record        = '04/16/2025 10:19:48;E;4413086.casper-pbs;user=vanderwb group=csgteam account="SCSG0001" project=_pbs_project_default jobname=vncs-default queue=vis ctime=1744817013 qtime=1744817013 etime=1744817013 start=1744817058 exec_host=casper15/3 exec_vnode=(casper15:ncpus=1:ngpus=1:mem=10485760kb) Resource_List.gpu_type=gp100 Resource_List.mem=10gb Resource_List.mps=0 Resource_List.ncpus=1 Resource_List.ngpus=1 Resource_List.nodect=1 Resource_List.nvpus=0 Resource_List.place=scatter Resource_List.select=1:ncpus=1:ngpus=1:os=opensuse15:ompthreads=1 Resource_List.walltime=04:00:00 session=45951 end=1744820388 Exit_status=271 resources_used.cpupercent=22 resources_used.cput=00:02:56 resources_used.mem=1243224kb resources_used.ncpus=1 resources_used.vmem=14088720kb resources_used.walltime=00:55:26 eligible_time=00:00:48 run_count=1'
+e_record_start  = '04/16/2025 10:19:48;E;4413086.casper-pbs;user=vanderwb group=csgteam account="SCSG0001" project=_pbs_project_default jobname=vncs-default queue=vis ctime=1744817013 qtime=1744817013 etime=1744817013 start=0 exec_host=casper15/3 exec_vnode=(casper15:ncpus=1:ngpus=1:mem=10485760kb) Resource_List.gpu_type=gp100 Resource_List.mem=10gb Resource_List.mps=0 Resource_List.ncpus=1 Resource_List.ngpus=1 Resource_List.nodect=1 Resource_List.nvpus=0 Resource_List.place=scatter Resource_List.select=1:ncpus=1:ngpus=1:os=opensuse15:ompthreads=1 Resource_List.walltime=04:00:00 session=45951 end=1744820388 Exit_status=271 resources_used.cpupercent=22 resources_used.cput=00:02:56 resources_used.mem=1243224kb resources_used.ncpus=1 resources_used.vmem=14088720kb resources_used.walltime=00:55:26 eligible_time=00:00:48 run_count=1'
+e_record_end    = '04/16/2025 10:19:48;E;4413086.casper-pbs;user=vanderwb group=csgteam account="SCSG0001" project=_pbs_project_default jobname=vncs-default queue=vis ctime=1744817013 qtime=1744817013 etime=1744817013 start=1744817058 exec_host=casper15/3 exec_vnode=(casper15:ncpus=1:ngpus=1:mem=10485760kb) Resource_List.gpu_type=gp100 Resource_List.mem=10gb Resource_List.mps=0 Resource_List.ncpus=1 Resource_List.ngpus=1 Resource_List.nodect=1 Resource_List.nvpus=0 Resource_List.place=scatter Resource_List.select=1:ncpus=1:ngpus=1:os=opensuse15:ompthreads=1 Resource_List.walltime=04:00:00 session=45951 end=0 Exit_status=271 resources_used.cpupercent=22 resources_used.cput=00:02:56 resources_used.mem=1243224kb resources_used.ncpus=1 resources_used.vmem=14088720kb resources_used.walltime=00:55:26 eligible_time=00:00:48 run_count=1'
+e_record_both   = '04/16/2025 10:19:48;E;4413086.casper-pbs;user=vanderwb group=csgteam account="SCSG0001" project=_pbs_project_default jobname=vncs-default queue=vis ctime=1744817013 qtime=1744817013 etime=1744817013 start=0 exec_host=casper15/3 exec_vnode=(casper15:ncpus=1:ngpus=1:mem=10485760kb) Resource_List.gpu_type=gp100 Resource_List.mem=10gb Resource_List.mps=0 Resource_List.ncpus=1 Resource_List.ngpus=1 Resource_List.nodect=1 Resource_List.nvpus=0 Resource_List.place=scatter Resource_List.select=1:ncpus=1:ngpus=1:os=opensuse15:ompthreads=1 Resource_List.walltime=04:00:00 session=45951 end=0 Exit_status=271 resources_used.cpupercent=22 resources_used.cput=00:02:56 resources_used.mem=1243224kb resources_used.ncpus=1 resources_used.vmem=14088720kb resources_used.walltime=00:55:26 eligible_time=00:00:48 run_count=1'
+
 def test_E_processing():
-    data = '04/16/2025 10:19:48;E;4413086.casper-pbs;user=vanderwb group=csgteam account="SCSG0001" project=_pbs_project_default jobname=vncs-default queue=vis ctime=1744817013 qtime=1744817013 etime=1744817013 start=1744817058 exec_host=casper15/3 exec_vnode=(casper15:ncpus=1:ngpus=1:mem=10485760kb) Resource_List.gpu_type=gp100 Resource_List.mem=10gb Resource_List.mps=0 Resource_List.ncpus=1 Resource_List.ngpus=1 Resource_List.nodect=1 Resource_List.nvpus=0 Resource_List.place=scatter Resource_List.select=1:ncpus=1:ngpus=1:os=opensuse15:ompthreads=1 Resource_List.walltime=04:00:00 session=45951 end=1744820388 Exit_status=271 resources_used.cpupercent=22 resources_used.cput=00:02:56 resources_used.mem=1243224kb resources_used.ncpus=1 resources_used.vmem=14088720kb resources_used.walltime=00:55:26 eligible_time=00:00:48 run_count=1'
+    data = e_record
     record = pbsparse.PbsRecord(data, True)
     assert record.resources_used["ncpus"] == 1
 
@@ -35,3 +40,33 @@ def test_C_processing():
     data = "01/30/2025 12:13:41;C;3632465.casper-pbs;"
     record = pbsparse.PbsRecord(data, True)
     assert record.comment == ""
+
+def test_processing_with_start_missing():
+    data = e_record_start
+    record = pbsparse.PbsRecord(data, True)
+    assert str(record.start) == "2025-04-16 09:24:22"
+
+def test_processing_with_end_missing():
+    data = e_record_end
+    record = pbsparse.PbsRecord(data, True)
+    assert str(record.end) == "2025-04-16 10:19:44"
+
+def test_processing_with_both_missing():
+    data = e_record_both
+    record = pbsparse.PbsRecord(data, True)
+    assert record.end == ""
+
+def test_status():
+    data = e_record
+    record = pbsparse.PbsRecord(data, True)
+    assert record._estimates == False
+
+def test_status_with_start_missing():
+    data = e_record_start
+    record = pbsparse.PbsRecord(data, True)
+    assert record._estimates == True
+
+def test_waittime_with_start_missing():
+    data = e_record_start
+    record = pbsparse.PbsRecord(data, True)
+    assert record.waittime == 49
