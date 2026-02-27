@@ -1,8 +1,7 @@
-"""pbsparse module for reading in PBS Pro job records from accounting logs"""
-
 import datetime, re, sys, os, io
 
 from typing import Optional, BinaryIO
+from itertools import islice
 
 NODE_REGEX = re.compile(r'\(([^:]*)')
 
@@ -20,12 +19,20 @@ class PbsRecord:
         id (str): The full job ID for the accounting record
         short_id (str): The job ID with the PBS server removed
 
+    Metadata Attributes:
+        _raw_record (str): The raw-text record for reference
+        _divisor (float): Time unit conversion factor
+        _estimates (bool): Whether some time fields in the record are derived from others
+        _location (int): The line number of the record in the PBS accounting file. Note that
+                         these values are relative to the starting point of the query, so if
+                         you are searching a file in reverse, the last record will be record 0!
+
     Note:
-        Record metadata are also stored as attributes, with key=value becoming self.key = value,
+        Record data are also stored as attributes, with key=value becoming self.key = value,
         except in the case of resources, which become self.resource_*[key] = value.
     """
 
-    def __init__(self, record_data, process = False, time_divisor = 1.0):
+    def __init__(self, record_data, process = False, time_divisor = 1.0, location = -1):
         time_stamp, record_type, job_id, record_meta = record_data.split(";")
 
         self._raw_record = record_data
@@ -35,6 +42,7 @@ class PbsRecord:
         self.short_id = self.id.split(".")[0]
         self._divisor = time_divisor
         self._estimates = False
+        self._location = location
 
         if "=" in record_meta:
             self._processable = True
@@ -241,13 +249,13 @@ class ReverseOpen:
         self.buffer_size = io.DEFAULT_BUFFER_SIZE if (buffer_size is None) else buffer_size
         self._file: Optional[BinaryIO] = None
         self._file_size: Optional[int] = None
+        self.open()
 
     def __iter__(self):
         for line in self.lines():
             yield self.decode(line)
 
     def __enter__(self):
-        self.open()
         return self
 
     def __exit__(self, *args, **kwargs):
@@ -339,25 +347,29 @@ def _mem_factor(units):
 def get_pbs_records(data_file, CustomRecord = None, process = False,
                     type_filter = None, id_filter = None, host_filter = None,
                     data_filters = None, time_filter = None, reverse = False,
-                    time_divisor = 1.0):
+                    time_divisor = 1.0, offset = 0, number = None):
     try:
         if reverse:
             cm = ReverseOpen(data_file)
         else:
             cm = open(data_file, "r")
     except FileNotFoundError:
-        print("Warning: missing records in time period ({})".format(data_file), file = sys.stderr)
+        print("Warning: no PBS records found for date in time range ({})".format(data_file), file = sys.stderr)
+        return
 
     if CustomRecord:
         Record = CustomRecord
     else:
         Record = PbsRecord
 
+    if number:
+        number = number + offset
+
     with cm as records:
-        for record in records:
+        for line_number, record in enumerate(islice(records, offset, number), start = offset):
             if not type_filter or record[20] in type_filter:
                 match = True
-                event = Record(record, process, time_divisor = time_divisor)
+                event = Record(record, process, time_divisor = time_divisor, location = line_number)
 
                 if not id_filter or any(event.short_id.startswith(job) for job in id_filter):
                     if host_filter:
